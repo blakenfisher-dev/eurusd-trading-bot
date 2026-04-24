@@ -594,14 +594,17 @@ def run_backtest():
     from backtest.backtest import Backtester
     from utils.data import load_historical_data
     
-    st.info("⏳ Running backtest simulation...")
+    st.info("⏳ Running backtest simulation from Jan 2024 to today...")
     
-    backtest_days = st.session_state.get('backtest_days', 90)
+    start_dt = datetime(2024, 1, 1)
+    end_dt = datetime.now()
+    days_backtest = (end_dt - start_dt).days
+    periods = days_backtest * 24
     
     data = load_historical_data(
         source="synthetic",
-        start_date=datetime(2024, 1, 1),
-        periods=backtest_days * 24,
+        start_date=start_dt,
+        periods=periods,
         timeframe=1,
         base_price=1.1000,
         volatility=0.0008,
