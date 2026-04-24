@@ -413,7 +413,9 @@ with tab4:
     if len(st.session_state.trades) > 0:
         trades_df = pd.DataFrame(st.session_state.trades)
         trades_df['Result'] = trades_df['pnl'].apply(lambda x: '✅' if x > 0 else '❌')
-        trades_df['P&L'] = trades_df['pnl'].apply(lambda x: f"<span style='color: {\"#10b981\" if x > 0 else \"#ef4444\"}'>${x:+,.2f}</span>")
+        green = "#10b981"
+        red = "#ef4444"
+        trades_df['P&L'] = trades_df['pnl'].apply(lambda x: f"<span style='color: {green if x > 0 else red}'>${x:+,.2f}</span>")
         
         cols_show = ['entry_time', 'direction', 'entry_price', 'exit_price', 'P&L', 'Result']
         avail = [c for c in cols_show if c in trades_df.columns]
@@ -429,8 +431,7 @@ with tab4:
             trades_df[avail].tail(20).sort_index(ascending=False),
             use_container_width=True,
             height=350,
-            hide_index=True,
-            html=True
+            hide_index=True
         )
         
         col_dl, col_clr = st.columns(2)
