@@ -1,0 +1,30 @@
+# Byte hide
+trading_bot/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+venv/
+env/
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Data
+*.csv
+*.parquet
+
+# Streamlit
+.streamlit/
