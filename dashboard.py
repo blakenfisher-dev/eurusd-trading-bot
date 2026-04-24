@@ -1,132 +1,226 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-from datetime import datetime, timedelta
-import time
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+from datetime import datetime
+import time
 import yfinance as yf
 
-st.set_page_config(page_title="EURUSD Trading Bot", page_icon="📈", layout="wide")
+st.set_page_config(
+    page_title="EURUSD Trading Bot",
+    page_icon="📈",
+    layout="wide",
+    initial_sidebar_state="collapsed"
+)
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
     
-    * { font-family: 'Inter', sans-serif; }
+    :root {
+        --bg-primary: #0a0a0f;
+        --bg-secondary: #12121a;
+        --bg-card: rgba(18, 18, 26, 0.8);
+        --accent-primary: #6366f1;
+        --accent-secondary: #8b5cf6;
+        --accent-green: #10b981;
+        --accent-red: #ef4444;
+        --accent-yellow: #f59e0b;
+        --accent-cyan: #06b6d4;
+        --text-primary: #ffffff;
+        --text-secondary: #a1a1aa;
+        --text-muted: #71717a;
+        --border-color: rgba(255, 255, 255, 0.1);
+        --glow-primary: rgba(99, 102, 241, 0.4);
+    }
     
-    .stApp { background: #0f0f14; }
+    * {
+        font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    }
+    
+    .stApp {
+        background: var(--bg-primary);
+        color: var(--text-primary);
+    }
     
     .main-header {
-        font-size: 2rem;
+        font-size: 2.5rem;
         font-weight: 700;
-        color: #00ff88;
-        text-align: center;
-        padding: 1rem;
-        margin-bottom: 1rem;
-        letter-spacing: -0.5px;
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-cyan));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        margin-bottom: 0;
+    }
+    
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+        background: transparent;
+        border-radius: 12px;
+        padding: 4px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        background: transparent;
+        color: var(--text-secondary);
+        border-radius: 8px;
+        padding: 12px 24px;
+        font-weight: 500;
+        transition: all 0.3s ease;
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+        color: white !important;
+        box-shadow: 0 4px 20px var(--glow-primary);
+    }
+    
+    .glass-card {
+        background: var(--bg-card);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 24px;
+        transition: all 0.3s ease;
+    }
+    
+    .glass-card:hover {
+        border-color: rgba(99, 102, 241, 0.3);
+        box-shadow: 0 8px 32px rgba(99, 102, 241, 0.1);
     }
     
     .metric-card {
-        background: linear-gradient(135deg, #1a1a24 0%, #0f0f14 100%);
-        border: 1px solid #2a2a3a;
-        padding: 1.5rem;
-        border-radius: 12px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
+        border: 1px solid rgba(99, 102, 241, 0.2);
+        border-radius: 16px;
+        padding: 20px;
         text-align: center;
-        transition: all 0.3s;
     }
     
-    .metric-card:hover { border-color: #00ff88; transform: translateY(-2px); }
+    .metric-value {
+        font-size: 2rem;
+        font-weight: 700;
+        background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+    }
     
-    .profit-text { color: #00ff88 !important; font-weight: 600; }
-    .loss-text { color: #ff4757 !important; font-weight: 600; }
+    .metric-label {
+        color: var(--text-muted);
+        font-size: 0.875rem;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+    
+    .metric-delta {
+        font-size: 0.875rem;
+        margin-top: 4px;
+    }
+    
+    .profit { color: var(--accent-green) !important; }
+    .loss { color: var(--accent-red) !important; }
     
     .stMetric {
         background: transparent !important;
     }
     
     div[data-testid="stMetricValue"] {
-        font-size: 1.8rem !important;
+        font-size: 2rem !important;
         font-weight: 700 !important;
     }
     
-    .stTabs [data-baseweb="tab-list"] {
-        background: #1a1a24;
-        border-radius: 10px;
-        padding: 5px;
-    }
-    
-    .stTabs [data-baseweb="tab"] {
-        color: #888;
-        font-weight: 500;
-    }
-    
-    .stTabs .css-1egby7a[aria-selected="true"] {
-        background: #00ff88;
-        color: #000;
-        border-radius: 8px;
-    }
-    
     .stButton > button {
-        background: linear-gradient(135deg, #00ff88 0%, #00cc6a 100%);
-        color: #000;
-        font-weight: 600;
-        border: none;
-        border-radius: 8px;
-        padding: 0.5rem 1.5rem;
-        transition: all 0.3s;
+        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 12px !important;
+        padding: 12px 32px !important;
+        font-weight: 600 !important;
+        font-size: 1rem !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 20px var(--glow-primary) !important;
     }
     
     .stButton > button:hover {
-        transform: scale(1.05);
-        box-shadow: 0 0 20px rgba(0,255,136,0.3);
-    }
-    
-    .sidebar .stSlider > div > div > div {
-        background: #2a2a3a;
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 32px var(--glow-primary) !important;
     }
     
     .stSelectbox > div > div {
-        background: #1a1a24;
-        border-color: #2a2a3a;
+        background: var(--bg-secondary) !important;
+        border: 1px solid var(--border-color) !important;
+        border-radius: 12px !important;
     }
     
-    .trade-card {
-        background: #1a1a24;
-        border: 1px solid #2a2a3a;
-        border-radius: 10px;
-        padding: 1rem;
-        margin: 0.5rem 0;
+    .stSlider > div > div > div > div {
+        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary)) !important;
     }
     
-    .green-glow { text-shadow: 0 0 10px rgba(0,255,136,0.5); }
-    .red-glow { text-shadow: 0 0 10px rgba(255,71,87,0.5); }
-    
-    div[data-testid="stHorizontalBlock"] {
-        gap: 1rem;
+    .sidebar .stSlider > div > div > div {
+        background: var(--bg-secondary) !important;
     }
     
-    .status-indicator {
+    .status-dot {
         display: inline-block;
-        width: 10px;
-        height: 10px;
+        width: 8px;
+        height: 8px;
         border-radius: 50%;
         margin-right: 8px;
     }
     
-    .status-running { background: #00ff88; animation: pulse 1.5s infinite; }
-    .status-stopped { background: #ff4757; }
-    
-    @keyframes pulse {
-        0% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,255,136,0.4); }
-        70% { opacity: 0.8; box-shadow: 0 0 0 10px rgba(0,255,136,0); }
-        100% { opacity: 1; box-shadow: 0 0 0 0 rgba(0,255,136,0); }
+    .status-running {
+        background: var(--accent-green);
+        animation: pulse-green 2s infinite;
     }
+    
+    .status-stopped {
+        background: var(--accent-red);
+    }
+    
+    @keyframes pulse-green {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+        50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+    }
+    
+    .section-title {
+        font-size: 1.25rem;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 16px;
+    }
+    
+    .nav-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 0;
+        border-bottom: 1px solid var(--border-color);
+        margin-bottom: 24px;
+    }
+    
+    .glow-text {
+        text-shadow: 0 0 20px var(--glow-primary);
+    }
+    
+    .chart-container {
+        background: var(--bg-card);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 20px;
+    }
+    
+    div[data-testid="stHorizontalBlock"] {
+        gap: 16px;
+    }
+    
+    .stSuccess { background: var(--accent-green) !important; }
+    .stWarning { background: var(--accent-yellow) !important; }
+    .stError { background: var(--accent-red) !important; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="main-header green-glow">📈 EURUSD Trading Bot</h1>', unsafe_allow_html=True)
+st.markdown('<h1 class="main-header glow-text">📈 EURUSD Trading Bot</h1>', unsafe_allow_html=True)
 
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
@@ -147,9 +241,8 @@ if 'initialized' not in st.session_state:
     st.session_state.backtest_speed = 10
 
 with st.sidebar:
-    st.markdown("### ⚙️ Settings")
+    st.markdown("### ⚙️ Configuration")
     
-    st.markdown("**Trading Mode**")
     mode = st.radio("Mode", ["🎮 Demo", "📄 Paper Trading", "💰 Live"], horizontal=True)
     
     if mode == "🎮 Demo":
@@ -163,52 +256,36 @@ with st.sidebar:
     
     st.divider()
     
-    st.markdown("**Strategy Selection**")
+    st.markdown("**Strategy**")
     strategy_choice = st.selectbox(
-        "Select Strategy",
+        "Select",
         ["Breakout", "SuperTrend", "TrendFollower", "MeanReversion", "Combo"],
-        help="Breakout is recommended for best results"
+        label_visibility="collapsed"
     )
     
     st.divider()
     
-    st.markdown("**Risk Parameters**")
-    risk_per_trade = st.slider("Risk per Trade", 0.5, 5.0, 2.0, help="Percentage of account risked per trade")
+    st.markdown("**Risk Management**")
+    risk_per_trade = st.slider("Risk per Trade", 0.5, 5.0, 2.0)
     max_daily_loss = st.slider("Max Daily Loss", 1.0, 10.0, 5.0)
     max_leverage = st.slider("Max Leverage", 10, 100, 30)
     
     st.divider()
     
     st.markdown("**Account**")
-    initial_balance = st.number_input("Initial Balance", 1000, 100000, 10000, step=1000)
+    initial_balance = st.number_input("Balance", 1000, 100000, 10000, step=1000, label_visibility="collapsed")
     
     if st.session_state.backtesting:
-        st.markdown("**Backtest Period**")
-        st.session_state.backtest_days = st.slider("Days to Backtest", 30, 365, 90)
-        st.session_state.backtest_speed = st.slider("Speed (x)", 1, 100, 10)
-    
-    st.divider()
-    
-    st.markdown("**Broker Configuration**")
-    
-    broker_select = st.selectbox("Broker", ["None", "MetaTrader 5", "OANDA", "IC Markets", "Interactive Brokers"])
-    
-    if broker_select != "None":
-        st.success(f"✅ Connected to {broker_select}")
-        
-        if broker_select == "MetaTrader 5":
-            mt5_server = st.text_input("Server", "BrokerServer")
-            mt5_login = st.text_input("Login", "12345678", type="password")
-            if st.button("🔗 Connect MT5"):
-                st.info("MT5 connection would be established here")
-    else:
-        st.info("📝 No broker selected - Demo mode active")
+        st.divider()
+        st.markdown("**Backtest**")
+        st.session_state.backtest_days = st.slider("Days", 30, 365, 90)
+        st.session_state.backtest_speed = st.slider("Speed", 1, 100, 10)
     
     st.divider()
     
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("▶️ Start", type="primary", use_container_width=True):
+        if st.button("▶️ Start", use_container_width=True):
             st.session_state.trading = True
     with col2:
         if st.button("⏹️ Stop", use_container_width=True):
@@ -216,134 +293,75 @@ with st.sidebar:
     
     st.divider()
     
-    status = '<span class="status-indicator status-running"></span>Running' if st.session_state.trading else '<span class="status-indicator status-stopped"></span>Stopped'
-    st.markdown(f"**Status:** {status}", unsafe_allow_html=True)
+    status_text = "Running" if st.session_state.trading else "Stopped"
+    status_class = "status-running" if st.session_state.trading else "status-stopped"
+    st.markdown(f"**Status:** <span class='status-dot {status_class}'></span>{status_text}", unsafe_allow_html=True)
     
     if st.session_state.mode == 'live':
-        st.warning("⚠️ Live trading involves real financial risk")
+        st.warning("⚠️ Real money at risk")
     elif st.session_state.mode == 'paper':
-        st.info("📝 Paper trading with simulated fills")
+        st.info("📝 Paper trading")
 
-col1, col2, col3, col4, col5 = st.columns(5)
+cols = st.columns(5)
 
-profit_class = "profit-text" if st.session_state.profit_total >= 0 else "loss-text"
+metrics_data = [
+    ("💰", "Balance", f"${st.session_state.balance:,.2f}", f"{st.session_state.profit_total:+,.2f}"),
+    ("📊", "Equity", f"${st.session_state.equity:,.2f}", f"{((st.session_state.equity - st.session_state.initial_balance)/st.session_state.initial_balance)*100:+.2f}%"),
+    ("🎯", "Win Rate", f"{(st.session_state.win_count / (st.session_state.win_count + st.session_state.loss_count) * 100) if (st.session_state.win_count + st.session_state.loss_count) > 0 else 0:.1f}%", f"{st.session_state.win_count}W/{st.session_state.loss_count}L"),
+    ("📈", "Total Trades", f"{st.session_state.win_count + st.session_state.loss_count}", ""),
+    ("📉", "Max DD", f"{max(0, ((max(st.session_state.equity_curve) - st.session_state.equity_curve[-1]) / max(st.session_state.equity_curve) * 100) if len(st.session_state.equity_curve) > 1 else 0):.2f}%", "")
+]
 
-with col1:
-    st.metric(
-        label="💰 Balance",
-        value=f"${st.session_state.balance:,.2f}",
-        delta=f"{st.session_state.profit_total:+,.2f}"
-    )
-
-with col2:
-    roi = ((st.session_state.equity - st.session_state.initial_balance) / st.session_state.initial_balance) * 100
-    st.metric(
-        label="📊 Equity",
-        value=f"${st.session_state.equity:,.2f}",
-        delta=f"{roi:+.2f}%"
-    )
-
-with col3:
-    total = st.session_state.win_count + st.session_state.loss_count
-    win_rate = (st.session_state.win_count / total * 100) if total > 0 else 0
-    st.metric(
-        label="🎯 Win Rate",
-        value=f"{win_rate:.1f}%",
-        delta=f"{st.session_state.win_count}W/{st.session_state.loss_count}L"
-    )
-
-with col4:
-    st.metric(
-        label="📈 Total Trades",
-        value=total,
-        delta=f"Open: {len([t for t in st.session_state.trades if not t.get('closed', False)])}"
-    )
-
-with col5:
-    max_dd = 0.0
-    if len(st.session_state.equity_curve) > 1:
-        peak = max(st.session_state.equity_curve)
-        current = st.session_state.equity_curve[-1]
-        max_dd = ((peak - current) / peak) * 100 if peak > 0 else 0
-    dd_color = "🟢" if max_dd < 2 else "🟡" if max_dd < 5 else "🔴"
-    st.metric(
-        label="📉 Max Drawdown",
-        value=f"{max_dd:.2f}%",
-        delta=dd_color
-    )
+for i, (icon, label, value, delta) in enumerate(metrics_data):
+    with cols[i]:
+        st.metric(label=label, value=value, delta=delta if delta else None)
 
 st.divider()
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📈 Equity & Profit", "📊 Performance", "📋 Trade History", "🕐 Live Chart", "⚙️ Strategy Info"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["📈 Equity", "💰 Profit", "📊 Performance", "📋 History", "🕐 Chart"])
 
 with tab1:
-    col_chart1, col_chart2 = st.columns([2, 1])
-    
-    with col_chart1:
-        st.subheader("📈 Equity Curve")
+    if len(st.session_state.equity_curve) > 1:
+        fig = go.Figure()
         
-        if len(st.session_state.equity_curve) > 1:
-            fig = go.Figure()
-            
-            fig.add_trace(go.Scatter(
-                x=list(range(len(st.session_state.equity_curve))),
-                y=st.session_state.equity_curve,
-                mode='lines',
-                name='Equity',
-                line=dict(color='#00ff88', width=2),
-                fill='tozeroy',
-                fillcolor='rgba(0,255,136,0.1)'
-            ))
-            
-            fig.add_hline(y=st.session_state.initial_balance, line_dash="dash", line_color="#666", annotation_text="Initial")
-            
-            fig.update_layout(
-                template='plotly_dark',
-                plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)',
-                height=400,
-                margin=dict(l=0, r=0, t=30, b=0),
-                xaxis_title="Time",
-                yaxis_title="Balance ($)",
-                font=dict(color='#888'),
-                xaxis=dict(gridcolor='#222', showgrid=True),
-                yaxis=dict(gridcolor='#222', showgrid=True)
-            )
-            
-            st.plotly_chart(fig, use_container_width=True)
-        else:
-            st.info("Start trading to see equity curve")
-    
-    with col_chart2:
-        st.subheader("📊 Quick Stats")
+        fig.add_trace(go.Scatter(
+            x=list(range(len(st.session_state.equity_curve))),
+            y=st.session_state.equity_curve,
+            mode='lines',
+            name='Equity',
+            line=dict(color='#6366f1', width=3),
+            fill='tozeroy',
+            fillcolor='rgba(99, 102, 241, 0.15)'
+        ))
         
-        if len(st.session_state.trades) > 0:
-            wins = st.session_state.win_count
-            losses = st.session_state.loss_count
-            
-            fig = go.Figure(data=[go.Pie(
-                labels=['Wins', 'Losses'],
-                values=[wins, losses],
-                marker=dict(colors=['#00ff88', '#ff4757'])
-            )])
-            fig.update_layout(
-                template='plotly_dark',
-                height=200,
-                margin=dict(l=20, r=20, t=20, b=20)
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            
-            st.metric("Profit Factor", f"{wins * abs(st.session_state.profit_total/wins if wins > 0 else 0) / (losses * abs(st.session_state.profit_total/losses if losses > 0 else 1) if losses > 0 else 1):.2f}" if wins > 0 else "N/A")
-        else:
-            st.info("No trades yet")
+        fig.add_hline(
+            y=st.session_state.initial_balance,
+            line_dash="dash",
+            line_color="rgba(255,255,255,0.3)",
+            annotation_text="Initial Balance"
+        )
+        
+        fig.update_layout(
+            template='plotly_dark',
+            plot_bgcolor='rgba(0,0,0,0)',
+            paper_bgcolor='rgba(0,0,0,0)',
+            height=450,
+            margin=dict(l=0, r=0, t=20, b=0),
+            font=dict(color='#a1a1aa'),
+            xaxis=dict(gridcolor='rgba(255,255,255,0.05)', showgrid=True, zeroline=False),
+            yaxis=dict(gridcolor='rgba(255,255,255,0.05)', showgrid=True, zeroline=False)
+        )
+        
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.info("🎯 Start trading to see your equity curve")
 
 with tab2:
-    st.subheader("💰 Profit Over Time")
-    
     if len(st.session_state.profit_curve) > 1:
         fig = go.Figure()
         
-        color = '#00ff88' if st.session_state.profit_curve[-1] >= 0 else '#ff4757'
+        color = '#10b981' if st.session_state.profit_curve[-1] >= 0 else '#ef4444'
+        fill_color = 'rgba(16, 185, 129, 0.2)' if st.session_state.profit_curve[-1] >= 0 else 'rgba(239, 68, 68, 0.2)'
         
         fig.add_trace(go.Scatter(
             x=list(range(len(st.session_state.profit_curve))),
@@ -351,104 +369,87 @@ with tab2:
             mode='lines',
             name='Cumulative Profit',
             line=dict(color=color, width=3),
-            fill='tozeroy' if st.session_state.profit_curve[-1] >= 0 else None,
-            fillcolor='rgba(0,255,136,0.2)' if st.session_state.profit_curve[-1] >= 0 else 'rgba(255,71,87,0.2)'
+            fill='tozeroy',
+            fillcolor=fill_color
         ))
         
-        fig.add_hline(y=0, line_dash="dash", line_color="#666")
+        fig.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.3)")
         
         fig.update_layout(
             template='plotly_dark',
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
-            height=350,
-            margin=dict(l=0, r=0, t=30, b=0),
-            xaxis_title="Trade Number",
-            yaxis_title="Cumulative Profit ($)",
-            font=dict(color='#888'),
-            xaxis=dict(gridcolor='#222'),
-            yaxis=dict(gridcolor='#222')
+            height=450,
+            margin=dict(l=0, r=0, t=20, b=0),
+            font=dict(color='#a1a1aa'),
+            xaxis=dict(gridcolor='rgba(255,255,255,0.05)', showgrid=True, zeroline=False),
+            yaxis=dict(gridcolor='rgba(255,255,255,0.05)', showgrid=True, zeroline=False)
         )
         
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("Start trading to see profit curve")
+        st.info("💰 Start trading to see profit accumulation")
 
-with tab2:
-    st.subheader("Strategy Performance Metrics")
+with tab3:
+    col_p1, col_p2 = st.columns(2)
     
-    if len(st.session_state.trades) > 0:
-        trades_df = pd.DataFrame(st.session_state.trades)
-        
-        col_perf1, col_perf2 = st.columns(2)
-        
-        with col_perf1:
-            st.markdown("#### Win/Loss Analysis")
-            
-            wins_data = [t['pnl'] for t in st.session_state.trades if t.get('pnl', 0) > 0]
-            losses_data = [t['pnl'] for t in st.session_state.trades if t.get('pnl', 0) < 0]
-            
-            avg_win = np.mean(wins_data) if wins_data else 0
-            avg_loss = np.mean(losses_data) if losses_data else 0
-            best_trade = max([t['pnl'] for t in st.session_state.trades]) if st.session_state.trades else 0
-            worst_trade = min([t['pnl'] for t in st.session_state.trades]) if st.session_state.trades else 0
-            
-            st.metric("Average Win", f"${avg_win:+.2f}")
-            st.metric("Average Loss", f"${avg_loss:,.2f}")
-            st.metric("Best Trade", f"${best_trade:+.2f}", delta="🎯")
-            st.metric("Worst Trade", f"${worst_trade:,.2f}", delta="⚠️")
-        
-        with col_perf2:
-            st.markdown("#### Risk Metrics")
-            
-            profit_factor = abs(sum(wins_data) / sum(losses_data)) if losses_data and sum(losses_data) != 0 else float('inf')
-            
-            st.metric("Profit Factor", f"{profit_factor:.2f}")
-            
-            if 'duration' in trades_df.columns:
-                st.metric("Avg Trade Duration", f"{trades_df['duration'].mean():.1f} hrs")
-            
-            expectancy = (win_rate/100 * avg_win) - ((1-win_rate/100) * abs(avg_loss))
-            st.metric("Expectancy", f"${expectancy:.2f}/trade")
-            
-            rrr = abs(avg_win / avg_loss) if avg_loss != 0 else float('inf')
-            st.metric("Reward:Risk Ratio", f"{rrr:.2f}")
-        
-        st.markdown("#### Monthly Performance")
-        
+    with col_p1:
+        st.markdown("### Win/Loss Distribution")
         if len(st.session_state.trades) > 0:
-            trades_df['month'] = pd.to_datetime(trades_df.get('entry_time', pd.Series())).dt.month
-            monthly = trades_df.groupby('month')['pnl'].sum()
-            
-            fig = go.Figure(data=[go.Bar(
-                x=monthly.index,
-                y=monthly.values,
-                marker_color=['#00ff88' if v > 0 else '#ff4757' for v in monthly.values]
+            fig = go.Figure(data=[go.Pie(
+                labels=['Wins', 'Losses'],
+                values=[st.session_state.win_count, st.session_state.loss_count],
+                marker=dict(colors=['#10b981', '#ef4444']),
+                hole=0.6
             )])
             fig.update_layout(
                 template='plotly_dark',
                 height=300,
-                xaxis_title="Month",
-                yaxis_title="P&L ($)"
+                margin=dict(l=20, r=20, t=20, b=20),
+                paper_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("No trades yet - start trading to see performance metrics")
-
-with tab3:
-    st.subheader("Trade History")
+        else:
+            st.info("No trades yet")
     
+    with col_p2:
+        st.markdown("### Risk Metrics")
+        if len(st.session_state.trades) > 0:
+            wins = [t['pnl'] for t in st.session_state.trades if t.get('pnl', 0) > 0]
+            losses = [t['pnl'] for t in st.session_state.trades if t.get('pnl', 0) < 0]
+            
+            avg_win = np.mean(wins) if wins else 0
+            avg_loss = np.mean(losses) if losses else 0
+            pf = abs(sum(wins) / sum(losses)) if losses and sum(losses) != 0 else float('inf')
+            
+            metrics = [
+                ("Avg Win", f"${avg_win:+.2f}", "#10b981"),
+                ("Avg Loss", f"${avg_loss:,.2f}", "#ef4444"),
+                ("Profit Factor", f"{pf:.2f}", "#6366f1"),
+                ("Expectancy", f"${(avg_win * len(wins) - abs(avg_loss) * len(losses)) / len(st.session_state.trades):.2f}", "#f59e0b")
+            ]
+            
+            for name, value, color in metrics:
+                st.markdown(f"""
+                <div class="glass-card" style="padding: 12px 16px; margin-bottom: 8px;">
+                    <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">{name}</div>
+                    <div style="color: {color}; font-size: 1.5rem; font-weight: 700;">{value}</div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No trades yet")
+
+with tab4:
     if len(st.session_state.trades) > 0:
         trades_df = pd.DataFrame(st.session_state.trades)
         trades_df['Result'] = trades_df['pnl'].apply(lambda x: '✅ WIN' if x > 0 else '❌ LOSS')
-        trades_df['P&L'] = trades_df['pnl'].apply(lambda x: f"${x:+.2f}")
+        trades_df['P&L'] = trades_df['pnl'].apply(lambda x: f"${x:+,.2f}")
         
         display_cols = ['entry_time', 'direction', 'entry_price', 'exit_price', 'P&L', 'Result']
-        available_cols = [c for c in display_cols if c in trades_df.columns]
-        display_df = trades_df[available_cols].tail(50).sort_index(ascending=False)
+        available = [c for c in display_cols if c in trades_df.columns]
         
         st.dataframe(
-            display_df,
+            trades_df[available].tail(30).sort_index(ascending=False),
             use_container_width=True,
             height=400,
             hide_index=True
@@ -456,22 +457,20 @@ with tab3:
         
         col_dl1, col_dl2 = st.columns(2)
         with col_dl1:
-            st.download_button(
-                "📥 Download CSV",
-                trades_df.to_csv(index=False),
-                "trade_history.csv",
-                "text/csv"
-            )
+            st.download_button("📥 Download CSV", trades_df.to_csv(index=False), "trades.csv", "text/csv", use_container_width=True)
         with col_dl2:
-            if st.button("🗑️ Clear History"):
+            if st.button("🗑️ Clear", use_container_width=True):
                 st.session_state.trades = []
+                st.session_state.win_count = 0
+                st.session_state.loss_count = 0
+                st.session_state.equity_curve = [st.session_state.initial_balance]
+                st.session_state.profit_curve = [0.0]
+                st.session_state.balance = st.session_state.initial_balance
                 st.rerun()
     else:
-        st.info("No trades recorded yet")
+        st.info("📋 No trades recorded yet")
 
-with tab4:
-    st.subheader("Live EURUSD Chart")
-    
+with tab5:
     try:
         eurusd = yf.download("EURUSD=X", period="1d", interval="5m", progress=False)
         
@@ -484,7 +483,9 @@ with tab4:
                 high=eurusd['High'],
                 low=eurusd['Low'],
                 close=eurusd['Close'],
-                name="EURUSD"
+                name="EURUSD",
+                increasing_line_color='#10b981',
+                decreasing_line_color='#ef4444'
             ))
             
             fig.update_layout(
@@ -492,197 +493,126 @@ with tab4:
                 height=500,
                 xaxis_rangeslider_visible=False,
                 plot_bgcolor='rgba(0,0,0,0)',
-                paper_bgcolor='rgba(0,0,0,0)'
+                paper_bgcolor='rgba(0,0,0,0)',
+                font=dict(color='#a1a1aa'),
+                xaxis=dict(gridcolor='rgba(255,255,255,0.05)'),
+                yaxis=dict(gridcolor='rgba(255,255,255,0.05)')
             )
             
             st.plotly_chart(fig, use_container_width=True)
             
-            current = eurusd['Close'].iloc[-1]
-            prev = eurusd['Close'].iloc[-2] if len(eurusd) > 1 else current
-            change = current - prev
-            pct = (change / prev) * 100
+            curr = eurusd['Close'].iloc[-1]
+            prev = eurusd['Close'].iloc[-2] if len(eurusd) > 1 else curr
+            chg = curr - prev
+            pct = (chg / prev) * 100
             
-            col_curr1, col_curr2 = st.columns(2)
-            with col_curr1:
-                st.metric("Current Price", f"{current:.5f}", delta=f"{change:+.5f}")
-            with col_curr2:
+            col_c1, col_c2 = st.columns(2)
+            with col_c1:
+                st.metric("Price", f"{curr:.5f}", delta=f"{chg:+.5f}")
+            with col_c2:
                 st.metric("Change", f"{pct:+.3f}%")
-        else:
-            st.error("Could not fetch EURUSD data")
     except Exception as e:
-        st.error(f"Error loading chart: {e}")
-
-with tab5:
-    st.subheader("Strategy Information")
-    
-    strategies_info = {
-        "Breakout": {
-            "description": "Identifies support/resistance breakout patterns. Best performing strategy with 60% win rate and 2.79 Sharpe ratio.",
-            "win_rate": "60%",
-            "sharpe": "2.79",
-            "profit_factor": "2.15",
-            "avg_pips": "+31.87",
-            "best_for": "Trending markets, high conviction setups"
-        },
-        "SuperTrend": {
-            "description": "Uses adaptive volatility bands. Good for all market conditions with 55% win rate.",
-            "win_rate": "55%",
-            "sharpe": "0.59",
-            "profit_factor": "0.87",
-            "avg_pips": "+1.40",
-            "best_for": "All market conditions"
-        },
-        "TrendFollower": {
-            "description": "EMA crossover with RSI confirmation. Best for strong trending markets.",
-            "win_rate": "25%",
-            "sharpe": "-1.70",
-            "profit_factor": "1.67",
-            "avg_pips": "-5.85",
-            "best_for": "Strong trends only"
-        },
-        "MeanReversion": {
-            "description": "Bollinger Bands + RSI for overbought/oversold. Best for ranging markets.",
-            "win_rate": "42%",
-            "sharpe": "-0.35",
-            "profit_factor": "1.34",
-            "avg_pips": "-0.46",
-            "best_for": "Ranging markets"
-        },
-        "Combo": {
-            "description": "Combines multiple strategies with voting. Reduces false signals but may miss trades.",
-            "win_rate": "57%",
-            "sharpe": "1.50",
-            "profit_factor": "1.20",
-            "avg_pips": "+2.37",
-            "best_for": "Conservative trading"
-        }
-    }
-    
-    selected_info = strategies_info[strategy_choice]
-    
-    st.markdown(f"### 📊 {strategy_choice}")
-    st.markdown(f"**{selected_info['description']}**")
-    
-    col_si1, col_si2, col_si3, col_si4 = st.columns(4)
-    with col_si1:
-        st.metric("Win Rate", selected_info['win_rate'])
-    with col_si2:
-        st.metric("Sharpe Ratio", selected_info['sharpe'])
-    with col_si3:
-        st.metric("Profit Factor", selected_info['profit_factor'])
-    with col_si4:
-        st.metric("Avg Pips", selected_info['avg_pips'])
-    
-    st.info(f"💡 **Best For:** {selected_info['best_for']}")
-    
-    st.divider()
-    st.subheader("Risk Management Settings")
-    
-    st.json({
-        "Max Risk per Trade": f"{risk_per_trade}%",
-        "Max Daily Loss": f"{max_daily_loss}%",
-        "Max Leverage": f"{max_leverage}x",
-        "Stop Loss": "1.5x ATR",
-        "Take Profit": "2.5x ATR"
-    })
+        st.error(f"Could not load chart: {e}")
 
 def run_backtest():
     import sys
-    sys.path.insert(0, r'C:\trading_bot')
-    from strategies.strategies import BreakoutStrategy, SuperTrendStrategy, TrendFollowerStrategy, MeanReversionStrategy
-    from utils.risk import RiskManager
-    from backtest.backtest import Backtester
-    from utils.data import load_historical_data
+    sys.path.insert(0, r'/mount/src/eurusd-trading-bot' if '/mount' in __file__ else r'C:\trading_bot')
     
-    st.info("⏳ Running backtest simulation from Jan 2024 to today...")
-    
-    start_dt = datetime(2024, 1, 1)
-    end_dt = datetime.now()
-    days_backtest = (end_dt - start_dt).days
-    periods = days_backtest * 24
-    
-    data = load_historical_data(
-        source="synthetic",
-        start_date=start_dt,
-        periods=periods,
-        timeframe=1,
-        base_price=1.1000,
-        volatility=0.0008,
-        trend=0.02,
-        noise=0.5,
-        add_trends=True,
-        add_clusters=True
-    )
-    
-    strategy_map = {
-        "Breakout": BreakoutStrategy(),
-        "SuperTrend": SuperTrendStrategy(),
-        "TrendFollower": TrendFollowerStrategy(),
-        "MeanReversion": MeanReversionStrategy()
-    }
-    
-    strategy = strategy_map.get(strategy_choice, BreakoutStrategy())
-    
-    bt = Backtester(initial_balance=initial_balance, spread=0.00015)
-    results = bt.run(data, strategy)
-    
-    for trade in results['trades']:
-        st.session_state.trades.append({
-            'entry_time': trade['entry_time'],
-            'direction': trade['direction'],
-            'entry_price': trade['entry_price'],
-            'exit_price': trade['exit_price'],
-            'pnl': trade['pnl'],
-            'duration': 24
-        })
+    try:
+        from strategies.strategies import BreakoutStrategy, SuperTrendStrategy, TrendFollowerStrategy, MeanReversionStrategy
+        from backtest.backtest import Backtester
+        from utils.data import load_historical_data
         
-        st.session_state.equity_curve.append(st.session_state.equity_curve[-1] + trade['pnl'])
-        st.session_state.profit_curve.append(st.session_state.profit_curve[-1] + trade['pnl'])
+        st.info("⏳ Running backtest from Jan 2024 to today...")
         
-        if trade['pnl'] > 0:
-            st.session_state.win_count += 1
-        else:
-            st.session_state.loss_count += 1
-    
-    st.session_state.balance = results['balance']
-    st.session_state.equity = results['balance']
-    st.session_state.profit_total = results['total_pnl']
-    
-    st.success(f"✅ Backtest complete! Final Balance: ${results['balance']:.2f} | ROI: {((results['balance']-initial_balance)/initial_balance)*100:+.2f}%")
+        start_dt = datetime(2024, 1, 1)
+        end_dt = datetime.now()
+        days_backtest = (end_dt - start_dt).days
+        periods = days_backtest * 24
+        
+        data = load_historical_data(
+            source="synthetic",
+            start_date=start_dt,
+            periods=periods,
+            timeframe=1,
+            base_price=1.1000,
+            volatility=0.0008,
+            trend=0.02,
+            noise=0.5,
+            add_trends=True,
+            add_clusters=True
+        )
+        
+        strategy_map = {
+            "Breakout": BreakoutStrategy(),
+            "SuperTrend": SuperTrendStrategy(),
+            "TrendFollower": TrendFollowerStrategy(),
+            "MeanReversion": MeanReversionStrategy()
+        }
+        
+        strategy = strategy_map.get(strategy_choice, BreakoutStrategy())
+        
+        bt = Backtester(initial_balance=initial_balance, spread=0.00015)
+        results = bt.run(data, strategy)
+        
+        for trade in results['trades']:
+            st.session_state.trades.append({
+                'entry_time': trade['entry_time'],
+                'direction': trade['direction'],
+                'entry_price': trade['entry_price'],
+                'exit_price': trade['exit_price'],
+                'pnl': trade['pnl'],
+                'duration': 24
+            })
+            
+            st.session_state.equity_curve.append(st.session_state.equity_curve[-1] + trade['pnl'])
+            st.session_state.profit_curve.append(st.session_state.profit_curve[-1] + trade['pnl'])
+            
+            if trade['pnl'] > 0:
+                st.session_state.win_count += 1
+            else:
+                st.session_state.loss_count += 1
+        
+        st.session_state.balance = results['balance']
+        st.session_state.equity = results['balance']
+        st.session_state.profit_total = results['total_pnl']
+        
+        roi = ((results['balance'] - initial_balance) / initial_balance) * 100
+        st.success(f"✅ Backtest complete! Balance: ${results['balance']:.2f} | ROI: {roi:+.2f}% | Win Rate: {results['win_rate']*100:.1f}%")
+        
+    except Exception as e:
+        st.error(f"Backtest error: {e}")
 
 if st.session_state.trading:
     if st.session_state.backtesting:
         run_backtest()
     else:
-        if len(st.session_state.equity_curve) < 200:
-            trend = 0.3
+        if len(st.session_state.equity_curve) < 500:
+            equity_change = np.random.normal(5, 25)
+            st.session_state.equity_curve.append(st.session_state.equity_curve[-1] + equity_change)
+            st.session_state.profit_curve.append(st.session_state.profit_curve[-1] + equity_change)
             
-            for _ in range(10):
-                equity_change = np.random.normal(trend, 30)
-                st.session_state.equity_curve.append(st.session_state.equity_curve[-1] + equity_change)
-                st.session_state.profit_curve.append(st.session_state.profit_curve[-1] + equity_change)
+            if np.random.random() > 0.5:
+                trade_pnl = np.random.uniform(-20, 40)
+                st.session_state.trades.append({
+                    'entry_time': datetime.now(),
+                    'direction': np.random.choice(['LONG', 'SHORT']),
+                    'entry_price': 1.1000,
+                    'exit_price': 1.1001,
+                    'pnl': trade_pnl,
+                    'duration': np.random.uniform(1, 24)
+                })
                 
-                if np.random.random() > 0.6:
-                    trade_pnl = np.random.uniform(-30, 50)
-                    st.session_state.trades.append({
-                        'entry_time': datetime.now(),
-                        'direction': np.random.choice(['LONG', 'SHORT']),
-                        'entry_price': 1.1000,
-                        'exit_price': 1.1001,
-                        'pnl': trade_pnl,
-                        'duration': np.random.uniform(1, 24)
-                    })
-                    
-                    if trade_pnl > 0:
-                        st.session_state.win_count += 1
-                    else:
-                        st.session_state.loss_count += 1
-                    
-                    st.session_state.balance += trade_pnl
-                    st.session_state.profit_total += trade_pnl
+                if trade_pnl > 0:
+                    st.session_state.win_count += 1
+                else:
+                    st.session_state.loss_count += 1
+                
+                st.session_state.balance += trade_pnl
+                st.session_state.profit_total += trade_pnl
     
     time.sleep(0.1)
     st.rerun()
 
 st.divider()
-st.caption("EURUSD Trading Bot v1.0 | Risk Warning: Trading forex involves substantial risk of loss | Paper trading simulated results")
+st.caption("EURUSD Trading Bot v2.0 | ⚠️ Trading involves risk | Paper trading results are simulated")
