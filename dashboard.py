@@ -7,158 +7,160 @@ from datetime import datetime
 import time
 import yfinance as yf
 
-st.set_page_config(
-    page_title="EURUSD Trading Bot",
-    page_icon="📈",
-    layout="wide",
-    initial_sidebar_state="collapsed"
-)
+st.set_page_config(page_title="EURUSD Trading Bot", page_icon="📈", layout="wide", initial_sidebar_state="collapsed")
 
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Geist+Mono:wght@400;500;600;700&display=swap');
     
     :root {
-        --bg-primary: #0a0a0f;
-        --bg-secondary: #12121a;
-        --bg-card: rgba(18, 18, 26, 0.8);
-        --accent-primary: #6366f1;
-        --accent-secondary: #8b5cf6;
-        --accent-green: #10b981;
-        --accent-red: #ef4444;
-        --accent-yellow: #f59e0b;
-        --accent-cyan: #06b6d4;
-        --text-primary: #ffffff;
-        --text-secondary: #a1a1aa;
+        --bg: #09090b;
+        --card: rgba(255, 255, 255, 0.02);
+        --card-border: rgba(255, 255, 255, 0.08);
+        --emerald: #10b981;
+        --emerald-glow: rgba(16, 185, 129, 0.15);
+        --text: #ffffff;
         --text-muted: #71717a;
-        --border-color: rgba(255, 255, 255, 0.1);
-        --glow-primary: rgba(99, 102, 241, 0.4);
+        --ring: rgba(16, 185, 129, 0.3);
     }
     
-    * {
-        font-family: 'Space Grotesk', -apple-system, BlinkMacSystemFont, sans-serif;
+    * { box-sizing: border-box; }
+    
+    body {
+        background: var(--bg) !important;
+        font-family: system-ui, -apple-system, sans-serif;
     }
     
-    .stApp {
-        background: var(--bg-primary);
-        color: var(--text-primary);
+    .stApp { background: var(--bg) !important; }
+    
+    .dot-grid {
+        background-image: radial-gradient(circle, rgba(255,255,255,0.05) 1px, transparent 1px);
+        background-size: 24px 24px;
     }
     
-    .main-header {
-        font-size: 2.5rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, var(--accent-primary), var(--accent-cyan));
+    .glow-blob {
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(100px);
+        opacity: 0.5;
+    }
+    
+    .card {
+        background: var(--card);
+        backdrop-filter: blur(20px);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+    }
+    
+    .mono { font-family: 'Geist Mono', monospace !important; }
+    
+    .logo-text {
+        font-family: 'Geist Mono', monospace;
+        background: linear-gradient(135deg, var(--text) 0%, var(--emerald) 100%);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
-        background-clip: text;
-        margin-bottom: 0;
+    }
+    
+    .emerald-text { color: var(--emerald) !important; }
+    .green-glow { text-shadow: 0 0 30px var(--emerald-glow); }
+    
+    .metric-box {
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        padding: 20px;
+        text-align: center;
+        transition: all 0.2s;
+    }
+    
+    .metric-box:hover {
+        border-color: var(--emerald);
+        box-shadow: 0 0 30px var(--emerald-glow);
+    }
+    
+    .metric-value {
+        font-size: 1.75rem;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1;
+        margin-bottom: 4px;
+    }
+    
+    .metric-label {
+        font-size: 0.7rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+    }
+    
+    .metric-delta {
+        font-size: 0.75rem;
+        margin-top: 8px;
+    }
+    
+    .stMetric > div { gap: 0 !important; }
+    div[data-testid="stMetricValue"] {
+        font-size: 1.5rem !important;
+        font-weight: 700 !important;
+        color: var(--text) !important;
+    }
+    div[data-testid="stMetricLabel"] {
+        font-size: 0.7rem !important;
+        text-transform: uppercase !important;
+        letter-spacing: 0.1em !important;
+        color: var(--text-muted) !important;
+    }
+    div[data-testid="stMetricDelta"] {
+        font-size: 0.75rem !important;
     }
     
     .stTabs [data-baseweb="tab-list"] {
-        gap: 8px;
-        background: transparent;
-        border-radius: 12px;
+        background: transparent !important;
+        gap: 4px;
         padding: 4px;
     }
     
     .stTabs [data-baseweb="tab"] {
-        background: transparent;
-        color: var(--text-secondary);
-        border-radius: 8px;
-        padding: 12px 24px;
-        font-weight: 500;
-        transition: all 0.3s ease;
+        background: transparent !important;
+        color: var(--text-muted) !important;
+        border-radius: 8px !important;
+        padding: 10px 20px !important;
+        font-weight: 500 !important;
+        font-size: 0.875rem !important;
+        border: none !important;
     }
     
     .stTabs [aria-selected="true"] {
-        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
-        color: white !important;
-        box-shadow: 0 4px 20px var(--glow-primary);
-    }
-    
-    .glass-card {
-        background: var(--bg-card);
-        backdrop-filter: blur(20px);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        padding: 24px;
-        transition: all 0.3s ease;
-    }
-    
-    .glass-card:hover {
-        border-color: rgba(99, 102, 241, 0.3);
-        box-shadow: 0 8px 32px rgba(99, 102, 241, 0.1);
-    }
-    
-    .metric-card {
-        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05));
-        border: 1px solid rgba(99, 102, 241, 0.2);
-        border-radius: 16px;
-        padding: 20px;
-        text-align: center;
-    }
-    
-    .metric-value {
-        font-size: 2rem;
-        font-weight: 700;
-        background: linear-gradient(135deg, var(--text-primary), var(--text-secondary));
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-    }
-    
-    .metric-label {
-        color: var(--text-muted);
-        font-size: 0.875rem;
-        text-transform: uppercase;
-        letter-spacing: 0.05em;
-    }
-    
-    .metric-delta {
-        font-size: 0.875rem;
-        margin-top: 4px;
-    }
-    
-    .profit { color: var(--accent-green) !important; }
-    .loss { color: var(--accent-red) !important; }
-    
-    .stMetric {
-        background: transparent !important;
-    }
-    
-    div[data-testid="stMetricValue"] {
-        font-size: 2rem !important;
-        font-weight: 700 !important;
+        background: var(--emerald) !important;
+        color: var(--bg) !important;
+        font-weight: 600 !important;
     }
     
     .stButton > button {
-        background: linear-gradient(135deg, var(--accent-primary), var(--accent-secondary)) !important;
-        color: white !important;
+        background: var(--emerald) !important;
+        color: var(--bg) !important;
         border: none !important;
-        border-radius: 12px !important;
-        padding: 12px 32px !important;
+        border-radius: 10px !important;
+        padding: 12px 24px !important;
         font-weight: 600 !important;
-        font-size: 1rem !important;
-        transition: all 0.3s ease !important;
-        box-shadow: 0 4px 20px var(--glow-primary) !important;
+        font-size: 0.875rem !important;
+        transition: all 0.2s !important;
+        width: 100%;
     }
     
     .stButton > button:hover {
-        transform: translateY(-2px) !important;
-        box-shadow: 0 8px 32px var(--glow-primary) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 10px 40px var(--emerald-glow) !important;
     }
     
     .stSelectbox > div > div {
-        background: var(--bg-secondary) !important;
-        border: 1px solid var(--border-color) !important;
-        border-radius: 12px !important;
+        background: var(--card) !important;
+        border: 1px solid var(--card-border) !important;
+        border-radius: 10px !important;
     }
     
     .stSlider > div > div > div > div {
-        background: linear-gradient(90deg, var(--accent-primary), var(--accent-secondary)) !important;
-    }
-    
-    .sidebar .stSlider > div > div > div {
-        background: var(--bg-secondary) !important;
+        background: var(--emerald) !important;
     }
     
     .status-dot {
@@ -166,61 +168,64 @@ st.markdown("""
         width: 8px;
         height: 8px;
         border-radius: 50%;
-        margin-right: 8px;
+        margin-right: 6px;
+        animation: pulse 2s infinite;
     }
     
-    .status-running {
-        background: var(--accent-green);
-        animation: pulse-green 2s infinite;
+    .status-running { background: var(--emerald); }
+    .status-stopped { background: #ef4444; }
+    
+    @keyframes pulse {
+        0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+        50% { opacity: 0.8; box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
     }
     
-    .status-stopped {
-        background: var(--accent-red);
+    .table-container {
+        background: var(--card);
+        border: 1px solid var(--card-border);
+        border-radius: 12px;
+        overflow: hidden;
     }
     
-    @keyframes pulse-green {
-        0%, 100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
-        50% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+    .dataframe {
+        background: transparent !important;
     }
     
-    .section-title {
-        font-size: 1.25rem;
-        font-weight: 600;
-        color: var(--text-primary);
-        margin-bottom: 16px;
+    .stDataFrame > div > div > div > table {
+        background: transparent !important;
+        border: none !important;
     }
     
-    .nav-header {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 16px 0;
-        border-bottom: 1px solid var(--border-color);
-        margin-bottom: 24px;
+    .stDataFrame [data-testid="stDataFrame"] {
+        border: none !important;
     }
     
-    .glow-text {
-        text-shadow: 0 0 20px var(--glow-primary);
-    }
-    
-    .chart-container {
-        background: var(--bg-card);
-        border: 1px solid var(--border-color);
-        border-radius: 16px;
-        padding: 20px;
+    section[data-testid="stMainBlockContainer"] {
+        padding-top: 1rem !important;
     }
     
     div[data-testid="stHorizontalBlock"] {
-        gap: 16px;
+        gap: 12px;
     }
-    
-    .stSuccess { background: var(--accent-green) !important; }
-    .stWarning { background: var(--accent-yellow) !important; }
-    .stError { background: var(--accent-red) !important; }
 </style>
 """, unsafe_allow_html=True)
 
-st.markdown('<h1 class="main-header glow-text">📈 EURUSD Trading Bot</h1>', unsafe_allow_html=True)
+st.markdown("""
+<div style="position: fixed; top: 0; left: 0; right: 0; bottom: 0; pointer-events: none; z-index: 0;">
+    <div class="dot-grid" style="position: absolute; inset: 0; opacity: 0.4;"></div>
+    <div style="position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 600px; height: 400px; background: radial-gradient(ellipse at center, rgba(16,185,129,0.08) 0%, transparent 70%);"></div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("""
+<div style="text-align: center; padding: 1rem 0 2rem; position: relative; z-index: 1;">
+    <span style="font-family: 'Geist Mono', monospace; font-size: 1.5rem; font-weight: 700;">
+        <span style="display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; background: rgba(16,185,129,0.15); border: 1px solid rgba(16,185,129,0.25); border-radius: 6px; font-size: 0.75rem; margin-right: 8px; color: var(--emerald);">&lt;/&gt;</span>
+        <span class="mono" style="font-size: 1.75rem;">poly<span style="color: var(--emerald);">bot</span></span>
+    </span>
+    <p class="mono" style="color: var(--text-muted); font-size: 0.875rem; margin-top: 0.5rem;">EURUSD Trading Bot — Backtest & Paper Trading</p>
+</div>
+""", unsafe_allow_html=True)
 
 if 'initialized' not in st.session_state:
     st.session_state.initialized = True
@@ -234,232 +239,205 @@ if 'initialized' not in st.session_state:
     st.session_state.win_count = 0
     st.session_state.loss_count = 0
     st.session_state.trading = False
-    st.session_state.mode = 'demo'
     st.session_state.backtesting = False
-    st.session_state.paper_trading = False
-    st.session_state.backtest_days = 90
-    st.session_state.backtest_speed = 10
 
 with st.sidebar:
-    st.markdown("### ⚙️ Configuration")
+    st.markdown("""
+    <div class="card" style="padding: 20px; margin-bottom: 16px;">
+        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+            <span class="status-dot status-running" id="statusDot"></span>
+            <span id="statusText" style="color: var(--text); font-weight: 500;">Stopped</span>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+            <div class="card" style="padding: 12px; text-align: center; cursor: pointer;" onclick="document.querySelectorAll('button')[0].click()">
+                <div style="font-size: 1.25rem;">▶️</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Start</div>
+            </div>
+            <div class="card" style="padding: 12px; text-align: center; cursor: pointer;" onclick="document.querySelectorAll('button')[1].click()">
+                <div style="font-size: 1.25rem;">⏹️</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); text-transform: uppercase;">Stop</div>
+            </div>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
     
-    mode = st.radio("Mode", ["🎮 Demo", "📄 Paper Trading", "💰 Live"], horizontal=True)
+    st.markdown("#### Strategy")
+    strategy_choice = st.selectbox("Select", ["Breakout", "SuperTrend", "TrendFollower", "MeanReversion", "Combo"], label_visibility="collapsed")
     
-    if mode == "🎮 Demo":
-        st.session_state.mode = 'demo'
-        st.session_state.backtesting = st.checkbox("⏪ Backtest Mode", value=False)
-    elif mode == "📄 Paper Trading":
-        st.session_state.mode = 'paper'
-        st.session_state.paper_trading = True
-    else:
-        st.session_state.mode = 'live'
+    st.markdown("#### Risk Management")
+    risk_per_trade = st.slider("Risk %", 0.5, 5.0, 2.0, step=0.5)
+    max_leverage = st.slider("Leverage", 10, 100, 30, step=10)
     
-    st.divider()
-    
-    st.markdown("**Strategy**")
-    strategy_choice = st.selectbox(
-        "Select",
-        ["Breakout", "SuperTrend", "TrendFollower", "MeanReversion", "Combo"],
-        label_visibility="collapsed"
-    )
-    
-    st.divider()
-    
-    st.markdown("**Risk Management**")
-    risk_per_trade = st.slider("Risk per Trade", 0.5, 5.0, 2.0)
-    max_daily_loss = st.slider("Max Daily Loss", 1.0, 10.0, 5.0)
-    max_leverage = st.slider("Max Leverage", 10, 100, 30)
-    
-    st.divider()
-    
-    st.markdown("**Account**")
+    st.markdown("#### Account")
     initial_balance = st.number_input("Balance", 1000, 100000, 10000, step=1000, label_visibility="collapsed")
     
-    if st.session_state.backtesting:
-        st.divider()
-        st.markdown("**Backtest**")
-        st.session_state.backtest_days = st.slider("Days", 30, 365, 90)
-        st.session_state.backtest_speed = st.slider("Speed", 1, 100, 10)
+    st.markdown("#### Backtest")
+    st.session_state.backtesting = st.checkbox("Enable Backtest (2024-Today)", value=False)
     
     st.divider()
     
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("▶️ Start", use_container_width=True):
-            st.session_state.trading = True
-    with col2:
-        if st.button("⏹️ Stop", use_container_width=True):
-            st.session_state.trading = False
-    
-    st.divider()
-    
-    status_text = "Running" if st.session_state.trading else "Stopped"
-    status_class = "status-running" if st.session_state.trading else "status-stopped"
-    st.markdown(f"**Status:** <span class='status-dot {status_class}'></span>{status_text}", unsafe_allow_html=True)
-    
-    if st.session_state.mode == 'live':
-        st.warning("⚠️ Real money at risk")
-    elif st.session_state.mode == 'paper':
-        st.info("📝 Paper trading")
+    st.markdown("""
+    <div style="text-align: center; color: var(--text-muted); font-size: 0.7rem; font-family: 'Geist Mono', monospace;">
+        > polybot v2.0<br>
+        > non-custodial
+    </div>
+    """, unsafe_allow_html=True)
 
 cols = st.columns(5)
-
-metrics_data = [
-    ("💰", "Balance", f"${st.session_state.balance:,.2f}", f"{st.session_state.profit_total:+,.2f}"),
-    ("📊", "Equity", f"${st.session_state.equity:,.2f}", f"{((st.session_state.equity - st.session_state.initial_balance)/st.session_state.initial_balance)*100:+.2f}%"),
-    ("🎯", "Win Rate", f"{(st.session_state.win_count / (st.session_state.win_count + st.session_state.loss_count) * 100) if (st.session_state.win_count + st.session_state.loss_count) > 0 else 0:.1f}%", f"{st.session_state.win_count}W/{st.session_state.loss_count}L"),
-    ("📈", "Total Trades", f"{st.session_state.win_count + st.session_state.loss_count}", ""),
-    ("📉", "Max DD", f"{max(0, ((max(st.session_state.equity_curve) - st.session_state.equity_curve[-1]) / max(st.session_state.equity_curve) * 100) if len(st.session_state.equity_curve) > 1 else 0):.2f}%", "")
+metrics = [
+    ("Balance", f"${st.session_state.balance:,.2f}", f"{st.session_state.profit_total:+,.2f}"),
+    ("Equity", f"${st.session_state.equity:,.2f}", f"{((st.session_state.equity - st.session_state.initial_balance)/st.session_state.initial_balance)*100:+.2f}%"),
+    ("Win Rate", f"{(st.session_state.win_count / max(1, st.session_state.win_count + st.session_state.loss_count) * 100):.1f}%", f"{st.session_state.win_count}W/{st.session_state.loss_count}L"),
+    ("Trades", f"{st.session_state.win_count + st.session_state.loss_count}", ""),
+    ("Max DD", f"{max(0, ((max(st.session_state.equity_curve) - st.session_state.equity_curve[-1]) / max(st.session_state.equity_curve) * 100) if len(st.session_state.equity_curve) > 1 else 0):.2f}%", "")
 ]
 
-for i, (icon, label, value, delta) in enumerate(metrics_data):
+for i, (label, value, delta) in enumerate(metrics):
     with cols[i]:
         st.metric(label=label, value=value, delta=delta if delta else None)
 
-st.divider()
+st.markdown("<div style='height: 16px;'></div>", unsafe_allow_html=True)
 
-tab1, tab2, tab3, tab4, tab5 = st.tabs(["📈 Equity", "💰 Profit", "📊 Performance", "📋 History", "🕐 Chart"])
+tab1, tab2, tab3, tab4, tab5 = st.tabs(["Equity Curve", "Cumulative Profit", "Performance", "Trade History", "Live EURUSD"])
 
 with tab1:
     if len(st.session_state.equity_curve) > 1:
         fig = go.Figure()
-        
         fig.add_trace(go.Scatter(
             x=list(range(len(st.session_state.equity_curve))),
             y=st.session_state.equity_curve,
             mode='lines',
-            name='Equity',
-            line=dict(color='#6366f1', width=3),
+            line=dict(color='#10b981', width=2),
             fill='tozeroy',
-            fillcolor='rgba(99, 102, 241, 0.15)'
+            fillcolor='rgba(16,185,129,0.1)'
         ))
-        
-        fig.add_hline(
-            y=st.session_state.initial_balance,
-            line_dash="dash",
-            line_color="rgba(255,255,255,0.3)",
-            annotation_text="Initial Balance"
-        )
-        
+        fig.add_hline(y=st.session_state.initial_balance, line_dash="dash", line_color="rgba(255,255,255,0.2)", annotation_text="Initial")
         fig.update_layout(
             template='plotly_dark',
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
-            height=450,
-            margin=dict(l=0, r=0, t=20, b=0),
-            font=dict(color='#a1a1aa'),
-            xaxis=dict(gridcolor='rgba(255,255,255,0.05)', showgrid=True, zeroline=False),
-            yaxis=dict(gridcolor='rgba(255,255,255,0.05)', showgrid=True, zeroline=False)
+            height=400,
+            margin=dict(l=0, r=0, t=10, b=0),
+            font=dict(color='#71717a'),
+            xaxis=dict(gridcolor='rgba(255,255,255,0.03)', showgrid=True, zeroline=False, showticklabels=False),
+            yaxis=dict(gridcolor='rgba(255,255,255,0.03)', showgrid=True, zeroline=False)
         )
-        
         st.plotly_chart(fig, use_container_width=True)
     else:
-        st.info("🎯 Start trading to see your equity curve")
+        st.info("▶️ Click Start in the sidebar to begin trading simulation")
 
 with tab2:
     if len(st.session_state.profit_curve) > 1:
-        fig = go.Figure()
-        
         color = '#10b981' if st.session_state.profit_curve[-1] >= 0 else '#ef4444'
-        fill_color = 'rgba(16, 185, 129, 0.2)' if st.session_state.profit_curve[-1] >= 0 else 'rgba(239, 68, 68, 0.2)'
+        fill = 'rgba(16,185,129,0.1)' if st.session_state.profit_curve[-1] >= 0 else 'rgba(239,68,68,0.1)'
         
+        fig = go.Figure()
         fig.add_trace(go.Scatter(
             x=list(range(len(st.session_state.profit_curve))),
             y=st.session_state.profit_curve,
             mode='lines',
-            name='Cumulative Profit',
-            line=dict(color=color, width=3),
+            line=dict(color=color, width=2),
             fill='tozeroy',
-            fillcolor=fill_color
+            fillcolor=fill
         ))
-        
-        fig.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.3)")
-        
+        fig.add_hline(y=0, line_dash="dash", line_color="rgba(255,255,255,0.2)")
         fig.update_layout(
             template='plotly_dark',
             plot_bgcolor='rgba(0,0,0,0)',
             paper_bgcolor='rgba(0,0,0,0)',
-            height=450,
-            margin=dict(l=0, r=0, t=20, b=0),
-            font=dict(color='#a1a1aa'),
-            xaxis=dict(gridcolor='rgba(255,255,255,0.05)', showgrid=True, zeroline=False),
-            yaxis=dict(gridcolor='rgba(255,255,255,0.05)', showgrid=True, zeroline=False)
+            height=400,
+            margin=dict(l=0, r=0, t=10, b=0),
+            font=dict(color='#71717a'),
+            xaxis=dict(gridcolor='rgba(255,255,255,0.03)', showgrid=True, zeroline=False, showticklabels=False),
+            yaxis=dict(gridcolor='rgba(255,255,255,0.03)', showgrid=True, zeroline=False)
         )
-        
         st.plotly_chart(fig, use_container_width=True)
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.markdown(f"<div class='card' style='padding: 16px; text-align: center;'><div class='mono' style='color: var(--emerald); font-size: 1.5rem; font-weight: 700;'>{st.session_state.profit_curve[-1]:+.2f}</div><div style='color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;'>Total P&L</div></div>", unsafe_allow_html=True)
+        with col2:
+            best = max(st.session_state.profit_curve)
+            worst = min(st.session_state.profit_curve)
+            st.markdown(f"<div class='card' style='padding: 16px; text-align: center;'><div class='mono' style='color: var(--emerald); font-size: 1.5rem; font-weight: 700;'>{best:+.2f}</div><div style='color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;'>Peak</div></div>", unsafe_allow_html=True)
+        with col3:
+            st.markdown(f"<div class='card' style='padding: 16px; text-align: center;'><div class='mono' style='color: #ef4444; font-size: 1.5rem; font-weight: 700;'>{worst:+.2f}</div><div style='color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;'>Valley</div></div>", unsafe_allow_html=True)
     else:
-        st.info("💰 Start trading to see profit accumulation")
+        st.info("Start trading to see profit accumulation")
 
 with tab3:
-    col_p1, col_p2 = st.columns(2)
+    col1, col2 = st.columns(2)
     
-    with col_p1:
-        st.markdown("### Win/Loss Distribution")
+    with col1:
+        st.markdown("### Win / Loss")
         if len(st.session_state.trades) > 0:
             fig = go.Figure(data=[go.Pie(
                 labels=['Wins', 'Losses'],
                 values=[st.session_state.win_count, st.session_state.loss_count],
                 marker=dict(colors=['#10b981', '#ef4444']),
-                hole=0.6
+                hole=0.7,
+                textinfo='none'
             )])
             fig.update_layout(
                 template='plotly_dark',
-                height=300,
-                margin=dict(l=20, r=20, t=20, b=20),
+                height=250,
+                margin=dict(l=0, r=0, t=0, b=0),
                 paper_bgcolor='rgba(0,0,0,0)'
             )
             st.plotly_chart(fig, use_container_width=True)
         else:
             st.info("No trades yet")
     
-    with col_p2:
+    with col2:
         st.markdown("### Risk Metrics")
         if len(st.session_state.trades) > 0:
             wins = [t['pnl'] for t in st.session_state.trades if t.get('pnl', 0) > 0]
             losses = [t['pnl'] for t in st.session_state.trades if t.get('pnl', 0) < 0]
-            
             avg_win = np.mean(wins) if wins else 0
             avg_loss = np.mean(losses) if losses else 0
             pf = abs(sum(wins) / sum(losses)) if losses and sum(losses) != 0 else float('inf')
             
-            metrics = [
-                ("Avg Win", f"${avg_win:+.2f}", "#10b981"),
-                ("Avg Loss", f"${avg_loss:,.2f}", "#ef4444"),
-                ("Profit Factor", f"{pf:.2f}", "#6366f1"),
-                ("Expectancy", f"${(avg_win * len(wins) - abs(avg_loss) * len(losses)) / len(st.session_state.trades):.2f}", "#f59e0b")
+            metrics_r = [
+                ("Avg Win", f"${avg_win:+.0f}", "#10b981"),
+                ("Avg Loss", f"${avg_loss:.0f}", "#ef4444"),
+                ("Profit Factor", f"{pf:.2f}", "#10b981"),
+                ("Expectancy", f"${(avg_win * len(wins) - abs(avg_loss) * len(losses)) / max(1, len(st.session_state.trades)):.0f}", "#10b981")
             ]
             
-            for name, value, color in metrics:
-                st.markdown(f"""
-                <div class="glass-card" style="padding: 12px 16px; margin-bottom: 8px;">
-                    <div style="color: var(--text-muted); font-size: 0.75rem; text-transform: uppercase;">{name}</div>
-                    <div style="color: {color}; font-size: 1.5rem; font-weight: 700;">{value}</div>
-                </div>
-                """, unsafe_allow_html=True)
+            for name, val, clr in metrics_r:
+                st.markdown(f"<div class='card' style='padding: 12px 16px; margin-bottom: 8px;'><div style='color: var(--text-muted); font-size: 0.7rem; text-transform: uppercase;'>{name}</div><div class='mono' style='color: {clr}; font-size: 1.25rem; font-weight: 700;'>{val}</div></div>", unsafe_allow_html=True)
         else:
             st.info("No trades yet")
 
 with tab4:
     if len(st.session_state.trades) > 0:
         trades_df = pd.DataFrame(st.session_state.trades)
-        trades_df['Result'] = trades_df['pnl'].apply(lambda x: '✅ WIN' if x > 0 else '❌ LOSS')
-        trades_df['P&L'] = trades_df['pnl'].apply(lambda x: f"${x:+,.2f}")
+        trades_df['Result'] = trades_df['pnl'].apply(lambda x: '✅' if x > 0 else '❌')
+        trades_df['P&L'] = trades_df['pnl'].apply(lambda x: f"<span style='color: {\"#10b981\" if x > 0 else \"#ef4444\"}'>${x:+,.2f}</span>")
         
-        display_cols = ['entry_time', 'direction', 'entry_price', 'exit_price', 'P&L', 'Result']
-        available = [c for c in display_cols if c in trades_df.columns]
+        cols_show = ['entry_time', 'direction', 'entry_price', 'exit_price', 'P&L', 'Result']
+        avail = [c for c in cols_show if c in trades_df.columns]
+        
+        st.markdown("""
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+            <span style="color: var(--text-muted); font-size: 0.875rem;">Recent Trades</span>
+            <span class="mono" style="color: var(--text-muted); font-size: 0.75rem;">{} trades</span>
+        </div>
+        """.format(len(trades_df)), unsafe_allow_html=True)
         
         st.dataframe(
-            trades_df[available].tail(30).sort_index(ascending=False),
+            trades_df[avail].tail(20).sort_index(ascending=False),
             use_container_width=True,
-            height=400,
-            hide_index=True
+            height=350,
+            hide_index=True,
+            html=True
         )
         
-        col_dl1, col_dl2 = st.columns(2)
-        with col_dl1:
-            st.download_button("📥 Download CSV", trades_df.to_csv(index=False), "trades.csv", "text/csv", use_container_width=True)
-        with col_dl2:
-            if st.button("🗑️ Clear", use_container_width=True):
+        col_dl, col_clr = st.columns(2)
+        with col_dl:
+            st.download_button("📥 Export CSV", trades_df.to_csv(index=False), "trades.csv", "text/csv", use_container_width=True)
+        with col_clr:
+            if st.button("🗑️ Clear All", use_container_width=True):
                 st.session_state.trades = []
                 st.session_state.win_count = 0
                 st.session_state.loss_count = 0
@@ -476,29 +454,25 @@ with tab5:
         
         if not eurusd.empty:
             fig = go.Figure()
-            
             fig.add_trace(go.Candlestick(
                 x=eurusd.index,
                 open=eurusd['Open'],
                 high=eurusd['High'],
                 low=eurusd['Low'],
                 close=eurusd['Close'],
-                name="EURUSD",
                 increasing_line_color='#10b981',
                 decreasing_line_color='#ef4444'
             ))
-            
             fig.update_layout(
                 template='plotly_dark',
-                height=500,
+                height=450,
                 xaxis_rangeslider_visible=False,
                 plot_bgcolor='rgba(0,0,0,0)',
                 paper_bgcolor='rgba(0,0,0,0)',
-                font=dict(color='#a1a1aa'),
-                xaxis=dict(gridcolor='rgba(255,255,255,0.05)'),
-                yaxis=dict(gridcolor='rgba(255,255,255,0.05)')
+                font=dict(color='#71717a'),
+                xaxis=dict(gridcolor='rgba(255,255,255,0.03)'),
+                yaxis=dict(gridcolor='rgba(255,255,255,0.03)')
             )
-            
             st.plotly_chart(fig, use_container_width=True)
             
             curr = eurusd['Close'].iloc[-1]
@@ -506,13 +480,13 @@ with tab5:
             chg = curr - prev
             pct = (chg / prev) * 100
             
-            col_c1, col_c2 = st.columns(2)
-            with col_c1:
-                st.metric("Price", f"{curr:.5f}", delta=f"{chg:+.5f}")
-            with col_c2:
-                st.metric("Change", f"{pct:+.3f}%")
-    except Exception as e:
-        st.error(f"Could not load chart: {e}")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.metric("EURUSD Price", f"{curr:.5f}", delta=f"{chg:+.5f}")
+            with col2:
+                st.metric("24h Change", f"{pct:+.3f}%")
+    except:
+        st.error("Could not load EURUSD data")
 
 def run_backtest():
     import sys
@@ -527,8 +501,7 @@ def run_backtest():
         
         start_dt = datetime(2024, 1, 1)
         end_dt = datetime.now()
-        days_backtest = (end_dt - start_dt).days
-        periods = days_backtest * 24
+        periods = (end_dt - start_dt).days * 24
         
         data = load_historical_data(
             source="synthetic",
@@ -578,22 +551,22 @@ def run_backtest():
         st.session_state.profit_total = results['total_pnl']
         
         roi = ((results['balance'] - initial_balance) / initial_balance) * 100
-        st.success(f"✅ Backtest complete! Balance: ${results['balance']:.2f} | ROI: {roi:+.2f}% | Win Rate: {results['win_rate']*100:.1f}%")
+        st.success(f"✅ Backtest complete! Final: ${results['balance']:,.2f} | ROI: {roi:+.2f}% | Win Rate: {results['win_rate']*100:.1f}%")
         
     except Exception as e:
-        st.error(f"Backtest error: {e}")
+        st.error(f"Error: {e}")
 
 if st.session_state.trading:
     if st.session_state.backtesting:
         run_backtest()
     else:
-        if len(st.session_state.equity_curve) < 500:
-            equity_change = np.random.normal(5, 25)
+        if len(st.session_state.equity_curve) < 300:
+            equity_change = np.random.normal(5, 20)
             st.session_state.equity_curve.append(st.session_state.equity_curve[-1] + equity_change)
             st.session_state.profit_curve.append(st.session_state.profit_curve[-1] + equity_change)
             
-            if np.random.random() > 0.5:
-                trade_pnl = np.random.uniform(-20, 40)
+            if np.random.random() > 0.4:
+                trade_pnl = np.random.uniform(-15, 35)
                 st.session_state.trades.append({
                     'entry_time': datetime.now(),
                     'direction': np.random.choice(['LONG', 'SHORT']),
@@ -614,5 +587,8 @@ if st.session_state.trading:
     time.sleep(0.1)
     st.rerun()
 
-st.divider()
-st.caption("EURUSD Trading Bot v2.0 | ⚠️ Trading involves risk | Paper trading results are simulated")
+st.markdown("""
+<div style="text-align: center; padding: 24px 0; color: var(--text-muted); font-size: 0.75rem; font-family: 'Geist Mono', monospace;">
+    > polybot v2.0 — secure & non-custodial — trading involves risk
+</div>
+""", unsafe_allow_html=True)
