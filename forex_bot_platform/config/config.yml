@@ -1,0 +1,11 @@
+pairs:
+- EURUSD
+- GBPUSD
+strategies:
+- Breakout
+- SuperTrend
+- TrendFollower
+- MeanReversion
+- Combo
+timeframe: 1h
+starting_balance: 100000

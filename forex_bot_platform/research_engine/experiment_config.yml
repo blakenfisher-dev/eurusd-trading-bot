@@ -1,0 +1,10 @@
+# Lightweight experiment config placeholder
+default:
+  experiments: 10
+  strategies:
+    - Breakout
+    - TrendFollower
+    - MeanReversion
+  pairs:
+    - EURUSD
+    - GBPUSD
